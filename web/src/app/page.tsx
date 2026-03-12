@@ -5,41 +5,46 @@ import ImageUploader from '@/components/ImageUploader';
 import InventoryList from '@/components/InventoryList';
 import BuildSuggestions from '@/components/BuildSuggestions';
 import { LegoPart, BuildSuggestion } from '@/types';
+import { identifyLegoPiece, findBuildSuggestions } from '@/lib/api';
 
 export default function Home() {
   const [inventory, setInventory] = useState<LegoPart[]>([]);
   const [suggestions, setSuggestions] = useState<BuildSuggestion[]>([]);
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [isFindingBuilds, setIsFindingBuilds] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleImageSelected = async (file: File) => {
     setIsIdentifying(true);
-    // TODO: Implement API call to Brickognize
-    console.log("Image selected:", file.name);
+    setError(null);
     
-    // Mocking API delay and response
-    setTimeout(() => {
-      const mockParts: LegoPart[] = [
-        { id: '3001', name: 'Brick 2 x 4', quantity: 4, imageUrl: 'https://cdn.rebrickable.com/media/parts/elements/300121.jpg' },
-        { id: '3003', name: 'Brick 2 x 2', quantity: 2, imageUrl: 'https://cdn.rebrickable.com/media/parts/elements/300321.jpg' },
-        { id: '3022', name: 'Plate 2 x 2', quantity: 6, imageUrl: 'https://cdn.rebrickable.com/media/parts/elements/302221.jpg' },
-      ];
+    try {
+      const formData = new FormData();
+      formData.append("query_image", file);
       
-      // Merge with existing inventory
-      setInventory(prev => {
-        const next = [...prev];
-        mockParts.forEach(newPart => {
-          const existing = next.find(p => p.id === newPart.id);
+      const part = await identifyLegoPiece(formData);
+      
+      if (part) {
+        // Merge with existing inventory
+        setInventory(prev => {
+          const next = [...prev];
+          const existing = next.find(p => p.id === part.id);
           if (existing) {
-            existing.quantity += newPart.quantity;
+            existing.quantity += 1;
           } else {
-            next.push({ ...newPart });
+            next.push(part);
           }
+          return next;
         });
-        return next;
-      });
+      } else {
+        setError("Could not identify any LEGO piece in the image.");
+      }
+    } catch (e) {
+      console.error("Identification failed:", e);
+      setError("An error occurred during identification. Please try again.");
+    } finally {
       setIsIdentifying(false);
-    }, 1500);
+    }
   };
 
   const handleUpdateQuantity = (id: string, newQuantity: number) => {
@@ -55,36 +60,22 @@ export default function Home() {
     setInventory(prev => prev.filter(p => p.id !== id));
   };
 
-  const handleFindBuilds = () => {
+  const handleFindBuilds = async () => {
     setIsFindingBuilds(true);
-    // TODO: Implement API call to Rebrickable
+    setError(null);
     
-    // Mocking API delay and response
-    setTimeout(() => {
-      setSuggestions([
-        {
-          setNum: '10696-1',
-          name: 'Medium Creative Brick Box',
-          year: 2015,
-          themeId: 1,
-          numParts: 484,
-          imageUrl: 'https://cdn.rebrickable.com/media/sets/10696-1.jpg',
-          url: 'https://rebrickable.com/sets/10696-1/',
-          matchPercentage: 85
-        },
-        {
-          setNum: 'MOC-12345',
-          name: 'Mini Red Car MOC',
-          year: 2023,
-          themeId: 2,
-          numParts: 55,
-          imageUrl: 'https://cdn.rebrickable.com/media/mocs/moc-12345.jpg',
-          url: 'https://rebrickable.com/mocs/MOC-12345/',
-          matchPercentage: 100
-        }
-      ]);
+    try {
+      const results = await findBuildSuggestions(inventory);
+      setSuggestions(results);
+      if (results.length === 0) {
+        setError("No build suggestions found for your pieces.");
+      }
+    } catch (e) {
+      console.error("Build suggestion failed:", e);
+      setError("Failed to fetch build suggestions. Check your API key.");
+    } finally {
       setIsFindingBuilds(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -104,6 +95,13 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-red-50 border-b border-red-100 py-3 px-8 text-center text-sm text-red-600 font-medium animate-in fade-in slide-in-from-top-4">
+          {error}
+        </div>
+      )}
+
       {/* Main Content Area */}
       <main className="flex-grow p-4 sm:p-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
@@ -111,10 +109,11 @@ export default function Home() {
           {/* Column 1: Upload / Camera */}
           <section className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4 h-fit">
             <div className="border-b border-gray-100 pb-3">
-              <h2 className="text-lg font-bold text-gray-900">1. Add Pieces</h2>
-              <p className="text-sm text-gray-500 mt-1">Upload a photo to identify your Lego bricks.</p>
+              <h2 className="text-lg font-bold text-gray-900">1. Add Piece</h2>
+              <p className="text-sm text-gray-500 mt-1">Upload a photo to identify a single Lego brick.</p>
             </div>
             <ImageUploader onImageSelected={handleImageSelected} isLoading={isIdentifying} />
+            <p className="text-[10px] text-gray-400 text-center italic">Tip: Take a photo of one piece at a time for best results.</p>
           </section>
 
           {/* Column 2: Inventory */}
