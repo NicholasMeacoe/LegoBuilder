@@ -29,3 +29,10 @@ Thumbs.db
 # Local Gemini / temporary files
 .gemini/
 tmp/
+
+# Data and SQLite
+data/
+web/data/
+*.db
+*.sqlite
+

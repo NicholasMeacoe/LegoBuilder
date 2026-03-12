@@ -1,6 +1,7 @@
 "use server";
 
 import { LegoPart, BuildSuggestion } from "@/types";
+import { findBuildsFromLocalDb } from "./db";
 
 const REBRICKABLE_API_KEY = process.env.REBRICKABLE_API_KEY;
 const BRICKOGNIZE_API_URL = process.env.BRICKOGNIZE_API_URL || "https://api.brickognize.com/predict/";
@@ -29,7 +30,6 @@ export async function identifyLegoPiece(formData: FormData): Promise<LegoPart | 
     if (!topCandidate) return null;
 
     // Map Brickognize response to our LegoPart type
-    // Brickognize typically returns id, name, external_ids (rebrickable, bricklink, etc.)
     const rebrickableId = topCandidate.external_ids?.rebrickable || topCandidate.id;
 
     return {
@@ -46,56 +46,52 @@ export async function identifyLegoPiece(formData: FormData): Promise<LegoPart | 
 }
 
 export async function findBuildSuggestions(inventory: LegoPart[]): Promise<BuildSuggestion[]> {
-  // If no Rebrickable key, return mock data
+  const localSuggestions = await findBuildsFromLocalDb(inventory).catch(err => {
+    console.error("Local DB search failed:", err);
+    return [];
+  });
+
+  // If we have enough local results (official sets), return them
+  if (localSuggestions.length >= 5) {
+    return localSuggestions;
+  }
+
+  // Fallback/Augment with API for MOCs or if local DB is empty
   if (!REBRICKABLE_API_KEY || REBRICKABLE_API_KEY.includes("YOUR_")) {
-    console.warn("No Rebrickable API key found. Returning mock data.");
-    return [
-      {
-        setNum: '10696-1',
-        name: 'Medium Creative Brick Box (Mock)',
-        year: 2015,
-        themeId: 1,
-        numParts: 484,
-        imageUrl: 'https://cdn.rebrickable.com/media/sets/10696-1.jpg',
-        url: 'https://rebrickable.com/sets/10696-1/',
-        matchPercentage: 85
-      },
-    ];
+    return localSuggestions;
   }
 
   try {
-    // Real implementation logic:
-    // Without a user token, we can't easily use the build engine.
-    // A simple approach for a prototype: search for sets/MOCs containing the FIRST part in inventory
-    // and see how many other parts they have.
+    if (inventory.length === 0) return localSuggestions;
     
-    if (inventory.length === 0) return [];
-    
+    // Search for MOCs containing the first part in inventory
     const partId = inventory[0].id;
     const response = await fetch(
-      `https://rebrickable.com/api/v3/lego/parts/${partId}/sets/`,
+      `https://rebrickable.com/api/v3/lego/parts/${partId}/mocs/?page_size=5`,
       {
         headers: { Authorization: `key ${REBRICKABLE_API_KEY}` },
       }
     );
 
-    if (!response.ok) return [];
+    if (!response.ok) return localSuggestions;
 
     const data = await response.json();
     
-    // Map Rebrickable sets to our BuildSuggestion type
-    return data.results.slice(0, 5).map((set: any) => ({
-      setNum: set.set_num,
-      name: set.name,
-      year: set.year,
-      themeId: set.theme_id,
-      numParts: set.num_parts,
-      imageUrl: set.set_img_url,
-      url: `https://rebrickable.com/sets/${set.set_num}/`,
-      matchPercentage: Math.random() * 50 + 50, // Mocked percentage for now
+    const apiSuggestions: BuildSuggestion[] = data.results.map((moc: any) => ({
+      setNum: moc.set_num,
+      name: moc.name,
+      year: moc.year,
+      themeId: moc.theme_id,
+      numParts: moc.num_parts,
+      imageUrl: moc.moc_img_url,
+      url: moc.moc_url,
+      matchPercentage: Math.random() * 40 + 60, // Mocked for MOCs without inventory comparison
     }));
+
+    // Combine local (official sets) and API (MOCs)
+    return [...localSuggestions, ...apiSuggestions].sort((a, b) => b.matchPercentage - a.matchPercentage);
   } catch (error) {
-    console.error("Failed to find builds:", error);
-    return [];
+    console.error("Failed to find MOCs via API:", error);
+    return localSuggestions;
   }
 }

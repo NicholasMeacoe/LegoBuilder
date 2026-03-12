@@ -1,14 +1,17 @@
 # LegoBuilder AI - Project Context
 
 ## Project Overview
-LegoBuilder AI is a web application designed to help LEGO enthusiasts identify their loose bricks from a photo and discover what they can build with their existing inventory. It leverages computer vision (intended via Brickognize) and a comprehensive LEGO database (Rebrickable) to provide build suggestions and step-by-step instructions.
+LegoBuilder AI is a web application designed to help LEGO enthusiasts identify their loose bricks from a photo and discover what they can build with their existing inventory. It uses a **Hybrid Architecture**:
+*   **Local SQLite Database:** Contains a mirrored copy of the official LEGO catalog (Sets, Parts, Themes, Inventories) for ultra-fast matching.
+*   **External APIs:** 
+    *   **Brickognize:** Used for piece recognition from images.
+    *   **Rebrickable API:** Used for real-time MOC (My Own Creations) suggestions and high-resolution images.
 
 ### Core Technologies
 *   **Framework:** Next.js 16 (App Router)
-*   **Library:** React 19
+*   **Database:** SQLite 3 (with `sqlite` wrapper)
 *   **Styling:** Tailwind CSS 4
-*   **Language:** TypeScript
-*   **APIs (Planned/Mocked):** Brickognize (Piece Recognition), Rebrickable (Sets & MOC Database)
+*   **Recognition:** Brickognize API
 
 ## Directory Structure
 The project is organized into a `web` directory containing the Next.js application.
@@ -16,13 +19,14 @@ The project is organized into a `web` directory containing the Next.js applicati
 ```text
 /home/pi/source/LegoBuilder/
 └── web/                   # Next.js Application
+    ├── data/              # Local SQLite database and raw data
+    ├── scripts/           # Maintenance scripts (e.g., database sync)
     ├── src/
     │   ├── app/           # App Router pages and layouts
     │   ├── components/    # Reusable UI components
+    │   ├── lib/           # API and Database logic
     │   ├── types/         # TypeScript interfaces and types
     │   └── ...
-    ├── public/            # Static assets
-    ├── package.json       # Dependencies and scripts
     └── ...
 ```
 
@@ -31,10 +35,11 @@ All commands should be run from the `web` directory.
 
 | Command | Description |
 | :--- | :--- |
-| `npm run dev` | Starts the development server at `http://localhost:3000` |
-| `npm run build` | Creates an optimized production build |
-| `npm run start` | Starts the production server |
-| `npm run lint` | Runs ESLint to check for code quality issues |
+| `npm run dev` | Starts the development server |
+| `npx tsx scripts/import_rebrickable.ts` | Downloads and syncs the local SQLite database from Rebrickable |
+
+## Database Maintenance
+The local database (`web/data/rebrickable.db`) should be refreshed periodically to include new official LEGO sets. Run `npx tsx scripts/import_rebrickable.ts` to perform a full sync.
 
 ## Development Conventions
 *   **State Management:** Currently managed via React `useState` in the main `Home` component for simplicity in this prototype phase.
