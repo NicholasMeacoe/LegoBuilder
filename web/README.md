@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LegoBuilder AI
+
+LegoBuilder AI is a web application that helps LEGO enthusiasts identify their loose bricks from a photo and discover what they can build with their existing inventory. It uses a hybrid architecture combining a local SQLite database for ultra-fast official set matching and the Rebrickable API for fan-made MOC suggestions.
+
+## Features
+
+- **Lego Recognition**: Uses the Brickognize API to identify parts from photos.
+- **Fast Build Suggestions**: Query over 1.4 million part relationships locally in milliseconds.
+- **Hybrid Search**: Blends local results (official sets) with API results (MOCs).
+- **Inventory Management**: Track and adjust your identified pieces.
 
 ## Getting Started
 
-First, run the development server:
+### 1. Prerequisites
+
+- Node.js 18+
+- A Rebrickable API Key (Get one at [rebrickable.com/api/](https://rebrickable.com/api/))
+
+### 2. Setup Environment
+
+Create a `web/.env.local` file and add your API keys:
+
+```text
+REBRICKABLE_API_KEY=your_api_key_here
+BRICKOGNIZE_API_URL=https://api.brickognize.com/predict/
+```
+
+### 3. Initialize/Update Local Database
+
+The app relies on a local SQLite database for fast matching. To download the latest LEGO catalog and populate your database, run:
 
 ```bash
+cd web
+npx tsx scripts/import_rebrickable.ts
+```
+
+*Note: This script downloads ~200MB of compressed CSV data and expands it into a ~180MB SQLite database.*
+
+### 4. Run the Application
+
+Start the development server:
+
+```bash
+cd web
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `web/src/app`: Main pages and layouts (Next.js App Router).
+- `web/src/components`: Reusable UI components.
+- `web/src/lib/api.ts`: Server Actions for Brickognize and Rebrickable API calls.
+- `web/src/lib/db.ts`: Local SQLite database query logic.
+- `web/scripts/import_rebrickable.ts`: Data sync script for downloading Rebrickable catalog.
+- `web/data`: (Git Ignored) Stores the local SQLite database.
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+To learn more about the project context and development conventions, see [GEMINI.md](./GEMINI.md).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Disclaimer
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+LegoBuilder AI is a fan project and is not affiliated with the LEGO Group.
